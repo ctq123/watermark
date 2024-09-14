@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Canvas Watermark</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <style>
+      .watermarked-content {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        background-color: #f5f5f5;
+        overflow: hidden;
+      }
+      .inner-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        z-index: 900;
+      }
+      .watermark-canvas {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        transform-origin: center center;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/" aria-current="page">Home</a>
+      <a href="/page-1.html">加码</a>
+      <a href="/page-2.html">解码</a>
+      <a href="/page-3.html">提取内容</a>
+    </nav>
+    <div id="targetElement" class="watermarked-content">
+      <div class="inner-content">
+        <span>Your content goes here.</span>
+      </div>
+    </div>
+
+    <script>
+      // 创建或重新创建水印 Canvas
+      function createWatermarkCanvas(
+        text = 'user name',
+        spacing = 80,
+        opacity = 0.1,
+        angle = -30
+      ) {
+        const container = document.querySelector('.watermarked-content');
+        let canvas = document.querySelector('.watermark-canvas');
+
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.className = 'watermark-canvas';
+          container.appendChild(canvas);
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        const rad = angle * (Math.PI / 180);
+        const fontSize = 20;
+        // const canvasWidth = container.offsetWidth;
+        // const canvasHeight = container.offsetHeight;
+        const width = container.offsetWidth;
+        const height = container.offsetHeight;
+        const newWidth =
+          Math.abs(width * Math.cos(rad)) + Math.abs(height * Math.sin(rad));
+        const newHeight =
+          Math.abs(height * Math.cos(rad)) + Math.abs(width * Math.sin(rad));
+        const canvasWidth = newWidth;
+        const canvasHeight = newHeight;
+        const textWidth = ctx.measureText(text).width;
+        const textHeight = fontSize; // Approximation
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        // 调整 canvas 的位置
+        canvas.style.position = 'absolute';
+        canvas.style.top = `-${(newHeight - height) / 2}px`;
+        canvas.style.left = `-${(newWidth - width) / 2}px`;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Calculate the number of text repetitions needed for width and height
+        const numRows = Math.ceil(canvasHeight / (textHeight + spacing));
+        const numCols = Math.ceil(canvasWidth / (textWidth + spacing));
+
+        ctx.save();
+        ctx.translate(canvasWidth / 2, canvasHeight / 2);
+        ctx.rotate(rad); // Rotate text if needed
+
+        // Draw repeated text with spacing
+        for (let row = 0; row < numRows; row++) {
+          for (let col = 0; col < numCols; col++) {
+            const x = col * (textWidth + spacing) - canvasWidth / 2;
+            const y = row * (textHeight + spacing) - canvasHeight / 2;
+            ctx.fillText(text, x, y);
+          }
+        }
+
+        ctx.restore();
+      }
+
+      // 确保 Canvas 始终位于最上层
+      function ensureCanvasOnTop(defaultMaxZIndex = 1000) {
+        const canvas = document.querySelector('.watermark-canvas');
+        if (canvas) {
+          // 获取所有元素的最高 z-index
+          let maxZIndex = Array.from(document.querySelectorAll('body *'))
+            .map((el) => parseFloat(window.getComputedStyle(el).zIndex))
+            .filter((zIndex) => !isNaN(zIndex))
+            .reduce((max, zIndex) => Math.max(max, zIndex), defaultMaxZIndex);
+
+          // 只有在发现新的最大 z-index 超过默认值时，才更新 canvas 的 z-index
+          if (maxZIndex >= defaultMaxZIndex) {
+            canvas.style.zIndex = maxZIndex + 1;
+          }
+        }
+      }
+
+      // 确保 Canvas 始终可见
+      function ensureCanvasVisibility() {
+        const canvas = document.querySelector('.watermark-canvas');
+        if (canvas) {
+          const style = window.getComputedStyle(canvas);
+          // 确保 Canvas 始终可见
+          if (
+            style.display === 'none' ||
+            style.visibility === 'hidden' ||
+            parseFloat(style.opacity) === 0
+          ) {
+            canvas.style.display = 'block';
+            canvas.style.visibility = 'visible';
+            canvas.style.opacity = 1;
+            createWatermarkCanvas(); // 重新绘制水印
+          }
+        }
+      }
+
+      // 设置 MutationObserver
+      function setupObservers() {
+        const targetNode = document.querySelector('.watermarked-content');
+        const canvas = document.querySelector('.watermark-canvas');
+
+        if (targetNode) {
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              // 监听属性变动
+              if (
+                mutation.type === 'attributes' &&
+                mutation.attributeName === 'style'
+              ) {
+                ensureCanvasVisibility();
+              }
+              // 监听 DOM 变动
+              ensureCanvasOnTop();
+              createWatermarkCanvas();
+            });
+          });
+
+          // 监听水印容器的子元素、属性变化
+          observer.observe(targetNode, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+          });
+        }
+
+        // 监听 Canvas 内容变动
+        if (canvas) {
+          const canvasObserver = new MutationObserver(() => {
+            createWatermarkCanvas();
+          });
+
+          canvasObserver.observe(canvas, { childList: true, subtree: true });
+        }
+      }
+
+      // 初始化函数
+      function initializeWatermark() {
+        createWatermarkCanvas();
+        ensureCanvasOnTop();
+        setupObservers();
+      }
+
+      window.onload = initializeWatermark;
+    </script>
+  </body>
+</html>

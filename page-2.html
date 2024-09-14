@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canvas Enhance Hidden Watermark Example</title>
+    <link rel="stylesheet" href="src/styles.css" />
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      .content {
+        position: relative;
+        z-index: 1;
+        padding: 20px;
+      }
+      #canvas {
+        border: 1px solid #000;
+        width: 500px;
+        height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/page-1.html">加码</a>
+      <a href="/page-2.html" aria-current="page">解码</a>
+      <a href="/page-3.html">提取内容</a>
+    </nav>
+
+    <div class="content">
+      <input type="file" id="upload" accept="image/*" />
+      <canvas id="canvas" width="500" height="500"></canvas>
+      <!-- Fixed canvas size -->
+    </div>
+
+    <script>
+      document
+        .getElementById('upload')
+        .addEventListener('change', handleDecode);
+
+      function handleDecode(event) {
+        const file = event.target.files[0];
+        const img = new Image();
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          img.src = e.target.result;
+        };
+
+        img.onload = function () {
+          const deCount = 10;
+          const canvasWidth = canvas.width || img.width;
+          const canvasHeight = canvas.height || img.height;
+
+          // Clear the canvas
+          ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+          // Calculate aspect ratio and scaling
+          const scaleWidth = canvasWidth / img.width;
+          const scaleHeight = canvasHeight / img.height;
+          const scale = Math.min(scaleWidth, scaleHeight);
+
+          // Calculate positioning to center the image
+          const x = canvasWidth / 2 - (img.width / 2) * scale;
+          const y = canvasHeight / 2 - (img.height / 2) * scale;
+
+          // Draw the image on the fixed-size canvas
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+          // Enhance the hidden watermark
+          ctx.save();
+          ctx.globalCompositeOperation = 'overlay'; // Enhance watermark visibility
+          ctx.fillStyle = '#000'; // Semi-transparent color for enhancement
+          for (let i = 0; i < deCount; i++) {
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+          }
+          ctx.restore();
+        };
+
+        reader.readAsDataURL(file);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tesseract.js Image Recognition</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/page-1.html">加码</a>
+      <a href="/page-2.html">解码</a>
+      <a href="/page-3.html" aria-current="page">提取内容</a>
+    </nav>
+    <input type="file" id="imageInput" accept="image/*" />
+    <canvas id="canvas" width="300" height="300"></canvas>
+    <button id="recognize">Recognize Text</button>
+    <p id="output">Detected Text:</p>
+
+    <script src="https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+    <script>
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const imageInput = document.getElementById('imageInput');
+      let imageData = null;
+
+      // 加载用户上传的图像并显示在 Canvas 上
+      imageInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function () {
+          const img = new Image();
+          img.onload = function () {
+            // 调整 Canvas 尺寸以适应图像
+            canvas.width = img.width;
+            canvas.height = img.height;
+            // 将图像绘制到 Canvas 上
+            ctx.drawImage(img, 0, 0);
+            imageData = canvas.toDataURL(); // 保存图像数据
+          };
+          img.src = reader.result;
+        };
+
+        if (file) {
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // 使用 tesseract.js 识别图像中的文本
+      document
+        .getElementById('recognize')
+        .addEventListener('click', async () => {
+          if (!imageData) {
+            alert('Please upload an image first!');
+            return;
+          }
+
+          try {
+            // 确保 tesseract.js 完全加载
+            const result = await Tesseract.recognize(canvas, 'eng', {
+              logger: (m) => console.log(m), // 可选的日志输出
+            });
+
+            console.log('result', result);
+
+            document.getElementById(
+              'output'
+            ).innerText = `Detected Text: ${result.data.text.trim()}`;
+          } catch (error) {
+            console.error('Error recognizing text:', error);
+          }
+        });
+    </script>
+  </body>
+</html>
